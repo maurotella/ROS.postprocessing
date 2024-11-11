@@ -33,7 +33,7 @@ class SingleRun:
         self.ex = ex
         self.verbose = verbose
         self.robot_nr = None
-        self.conn = sqlite3.connect(DB_PATH+'\\data_test.db')
+        self.conn = sqlite3.connect(DB_PATH+'/data_test.db')
         #self.conn = 'sqlite:////data_test.db'
         self.where = f'WHERE execution={ex}'
         self.positions = None
@@ -339,7 +339,7 @@ get_origin = lambda map: map['info']['origin']['position']
 get_res    = lambda map: map['info']['resolution']
 
 def merge_maps(maps, real_map=None, threshold=70):
-    if real_map: maps = [real_map] + maps  
+    if real_map: maps = [real_map] + maps + [real_map]  
     min_x = min([get_origin(map)['x'] for map in maps])
     min_y = min([get_origin(map)['y'] for map in maps])
     max_x = max([get_origin(map)['x']+get_size(map)[1]*get_res(map) for map in maps])
@@ -354,9 +354,16 @@ def merge_maps(maps, real_map=None, threshold=70):
         bottom  = round((get_origin(map)['y'] - min_y)/res)
         up      = bottom + get_size(map)[0]
         section = img[bottom:up,left:right]
-        img[bottom:up,left:right] = section * get_map_img(map)
-        if real_map and idx==0: img[img==0] = 100
-        img[bottom:up,left:right] = section * -1
+        map_img = get_map_img(map)
+        if idx==len(maps)-1:
+            img[bottom:up,left:right] = section + map_img
+            section[section==-2] = -1
+            section[section==99] = 100
+        else:
+            img[bottom:up,left:right] = section * map_img
+            if real_map and idx==0:
+                img[img==0] = 100
+            img[bottom:up,left:right] = section * -1
         section[section>100] = 100
         section[section<-1]  = 100
     merged_map = {
