@@ -6,7 +6,6 @@ from matplotlib.colors import ListedColormap, BoundaryNorm
 import matplotlib
 import matplotlib.pyplot as plt
 from math import inf
-from numba import jit
 
 robot_numbers_backup = pd.read_csv('robot_numbers.csv')
 no_rendezvous = pd.read_csv('no_rendezvous.csv')
