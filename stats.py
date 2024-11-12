@@ -29,11 +29,11 @@ plt.rcParams['hatch.linewidth'] = .6
 DB_PATH = 'C:\\Users\\mauro\\Documents'
 
 class SingleRun:
-    def __init__(self, ex, real_map=None, verbose=False):
+    def __init__(self, db_path:str, ex:int, real_map:str=None, verbose:bool=False):
         self.ex = ex
         self.verbose = verbose
         self.robot_nr = None
-        self.conn = sqlite3.connect(DB_PATH+'/data_test.db')
+        self.conn = sqlite3.connect(db_path)
         #self.conn = 'sqlite:////data_test.db'
         self.where = f'WHERE execution={ex}'
         self.positions = None
@@ -218,7 +218,7 @@ class SingleRun:
         return merge_maps(maps,real_map=MAPS[self.real_map] if self.real_map else None)
 
     def get_perc_area(self, check_map=False, check_pos=False):
-        print(self.ex)
+        if self.verbose: print(self.ex)
         if self.real_map is None:
             raise Exception("Valore della mappa reale richiesto, modificare l'attributo real_map")
         if not self.is_rendezvous():
@@ -236,7 +236,7 @@ class SingleRun:
         return explored/real
 
 class TestSet:
-    def __init__(self, test_set, map_name, verbose=False):
+    def __init__(self, db_path:str, test_set:dict, map_name:str, verbose:bool=False):
         ''' test_set = {
             'method1': [ex1,...,exn],
             ...,
@@ -247,7 +247,7 @@ class TestSet:
             raise Exception(f'Nome della mappa non valido.\n Valori validi: {list(MAPS.keys())}')
         self.map_name = map_name
         self.methods = list(test_set.keys())
-        self.data = {method:[SingleRun(ts,real_map=map_name,verbose=verbose) for ts in test_set[method]] for method in test_set}
+        self.data = {method:[SingleRun(db_path,ts,real_map=map_name,verbose=verbose) for ts in test_set[method]] for method in test_set}
         if any([len(set([sr.get_robot_nr() for sr in self.data[meth]]))!=1 for meth in self.data]):
             raise Exception('Le run non hanno lo stesso numero di robot')
         self.robot_nr = self.data[self.methods[0]][0].get_robot_nr()
@@ -284,7 +284,7 @@ class TestSet:
         return res
     
     def get_perc_areas(self):
-        return {meth:[sr.get_perc_area() for sr in self.data[meth]] for meth in self.test_set}
+        return {meth:{sr.ex:sr.get_perc_area() for sr in self.data[meth]} for meth in self.test_set}
 
     def __repr__(self):
         return f'{self.data}'
@@ -355,7 +355,7 @@ def merge_maps(maps, real_map=None, threshold=70):
         up      = bottom + get_size(map)[0]
         section = img[bottom:up,left:right]
         map_img = get_map_img(map)
-        if idx==len(maps)-1:
+        if idx==len(maps)-1 and real_map:
             img[bottom:up,left:right] = section + map_img
             section[section==-2] = -1
             section[section==99] = 100
