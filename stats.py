@@ -137,9 +137,8 @@ class SingleRun:
             if not shp.Point(first_pos).distance(shp.Point(last_pos))<.3:
                 ax.plot(*last_pos, color=color, **final_marker)
             if scia:
-                ax.plot(*first_pos, 'o', color=color,markersize=5, markeredgecolor='k', label=f'$r_{r+1}$')
+                ax.plot(*first_pos, 'o', color=color, markersize=5, markeredgecolor='k', label=f'$r_{r+1}$')
             if information_decay: #non gestisce unioni di più di 2 robot
-
                 pos = self.positions
                 id_poses = pos[(pos['robot']==r+1)&(pos['time']>time-id_time)&(pos['time']<time)]
                 id_poses_xy = (((id_poses['x']-o_x)/resolution).to_list(), ((id_poses['y']-o_y)/resolution).to_list())
@@ -221,7 +220,6 @@ class SingleRun:
         n = self.robot_nr
         _, axs = plt.subplots(ceil((n+1)/2), 2, dpi=200)
         borders = []
-        m_ox, m_oy = (get_origin(self.finalMap)['x'], get_origin(self.finalMap)['y'])
         for robot in range(1, n+1):
             ax = axs[(robot-1)//2][(robot-1)%2]
             map = self.get_final_map_single(robot)['map']
@@ -233,13 +231,14 @@ class SingleRun:
             max_y = -1
             h, w = len(map_img), len(map_img[0]) 
             res = get_res(self.finalMap)
+            for c in range(w):
+                if min_x!=-1 and max_x!=-1: break
+                if min_x==-1 and (map_img[:,c:c+1]!=-1).any():     min_x = c
+                if max_x==-1 and (map_img[:,w-c-1:w-c]!=-1).any(): max_x = (w-c-1)
             for r in range(h):
                 if min_y!=-1 and max_y!=-1: break
-                if any(map_img[:,r:r+1]!=-1): min_y = r*res
-                if any(map_img[:,h-r:h-r+1]!=-1): max_y = (h-r)*res
-            #for r in range(h):
-            #    if any(map_img[:,r:r+1]!=-1): min_y = r/res
-            #    if any(map_img[:,h-r:h-r+1]!=-1): max_y = (h-r)/res
+                if min_y==-1 and (map_img[r:r+1,:]!=-1).any():     min_y = r
+                if max_y==-1 and (map_img[h-r:h-r+1,:]!=-1).any(): max_y = (h-r)
             borders.append((min_x,min_y,max_x,max_y))
             trace = self.get_tracciato(
                 robot,
@@ -251,25 +250,39 @@ class SingleRun:
                 linewidth=.6,
                 color=COLOR_LIST[(robot-1)%len(COLOR_LIST)]
             )
+            ax.plot(
+                [min_x,max_x,max_x,min_x,min_x],
+                [min_y,min_y,max_y,max_y,min_y],
+                linewidth=.6,
+                color=COLOR_LIST[(robot-1)%len(COLOR_LIST)]
+            )    
             ax.set_title(f'robot {robot}')
             ax.axis('off')
         plot_occ_grid(
             self.finalMap,
             axs[-1][-1]
         )
-        #SR.plot_tracciato(ax=axs[-1][-1], map=SR.finalMap)
+        marker = {
+            'marker': 'p',
+            'markersize':4,
+            'markeredgecolor':'k'
+        }
+        self.plot_tracciato(ax=axs[-1][-1], map=self.finalMap, final_marker=marker)
         res = get_res(self.finalMap)
-        print(borders)
+        m_ox, m_oy = (get_origin(self.finalMap)['x'], get_origin(self.finalMap)['y'])
         for robot in range(1, n+1):
-            min_x = borders[robot-1][0]/res
-            min_y = borders[robot-1][1]/res
-            max_x = borders[robot-1][2]/res
-            max_y = borders[robot-1][3]/res
-            #axs[-1][-1].plot(
-            #    [min_x,max_x,max_x,min_x,min_x],
-            #    [min_y,min_y,max_y,max_y,min_y],
-            #    linewidth=.6
-            #)    
+            o_x = get_origin(self.get_final_map_single(robot)['map'])['x']
+            o_y = get_origin(self.get_final_map_single(robot)['map'])['y']
+            min_x = borders[robot-1][0]-((m_ox-o_x)/res)
+            min_y = borders[robot-1][1]-((m_oy-o_y)/res)
+            max_x = borders[robot-1][2]-((m_ox-o_x)/res)
+            max_y = borders[robot-1][3]-((m_oy-o_y)/res)
+            axs[-1][-1].plot(
+                [min_x,max_x,max_x,min_x,min_x],
+                [min_y,min_y,max_y,max_y,min_y],
+                linewidth=.6,
+                color=COLOR_LIST[(robot-1)%len(COLOR_LIST)]
+            )
         axs[-1][-1].axis('off')
         axs[-1][-1].set_title('merged')
         plt.subplots_adjust(wspace=0, hspace=0.15)
