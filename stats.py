@@ -5,7 +5,7 @@ import sqlite3, zlib, pickle, base64, json
 from matplotlib.colors import ListedColormap, BoundaryNorm
 import matplotlib
 import matplotlib.pyplot as plt
-from math import inf
+from math import inf, ceil
 
 robot_numbers_backup = pd.read_csv('robot_numbers.csv')
 no_rendezvous = pd.read_csv('no_rendezvous.csv')
@@ -217,6 +217,63 @@ class SingleRun:
             return old_merge_maps(maps,real_map=MAPS[self.real_map] if self.real_map else None) 
         return merge_maps(maps,real_map=MAPS[self.real_map] if self.real_map else None)
 
+    def check_final_maps(self):
+        n = self.robot_nr
+        _, axs = plt.subplots(ceil((n+1)/2), 2, dpi=200)
+        borders = []
+        m_ox, m_oy = (get_origin(self.finalMap)['x'], get_origin(self.finalMap)['y'])
+        for robot in range(1, n+1):
+            ax = axs[(robot-1)//2][(robot-1)%2]
+            map = self.get_final_map_single(robot)['map']
+            plot_occ_grid(map, ax)
+            map_img = get_map_img(map)
+            min_x = -1
+            min_y = -1
+            max_x = -1
+            max_y = -1
+            h, w = len(map_img), len(map_img[0]) 
+            res = get_res(self.finalMap)
+            for r in range(h):
+                if min_y!=-1 and max_y!=-1: break
+                if any(map_img[:,r:r+1]!=-1): min_y = r*res
+                if any(map_img[:,h-r:h-r+1]!=-1): max_y = (h-r)*res
+            #for r in range(h):
+            #    if any(map_img[:,r:r+1]!=-1): min_y = r/res
+            #    if any(map_img[:,h-r:h-r+1]!=-1): max_y = (h-r)/res
+            borders.append((min_x,min_y,max_x,max_y))
+            trace = self.get_tracciato(
+                robot,
+                origin = (get_origin(map)['x'], get_origin(map)['y']),
+                resolution = get_res(map)
+            )
+            ax.plot(
+                *trace.coords.xy,
+                linewidth=.6,
+                color=COLOR_LIST[(robot-1)%len(COLOR_LIST)]
+            )
+            ax.set_title(f'robot {robot}')
+            ax.axis('off')
+        plot_occ_grid(
+            self.finalMap,
+            axs[-1][-1]
+        )
+        #SR.plot_tracciato(ax=axs[-1][-1], map=SR.finalMap)
+        res = get_res(self.finalMap)
+        print(borders)
+        for robot in range(1, n+1):
+            min_x = borders[robot-1][0]/res
+            min_y = borders[robot-1][1]/res
+            max_x = borders[robot-1][2]/res
+            max_y = borders[robot-1][3]/res
+            #axs[-1][-1].plot(
+            #    [min_x,max_x,max_x,min_x,min_x],
+            #    [min_y,min_y,max_y,max_y,min_y],
+            #    linewidth=.6
+            #)    
+        axs[-1][-1].axis('off')
+        axs[-1][-1].set_title('merged')
+        plt.subplots_adjust(wspace=0, hspace=0.15)
+
     def get_perc_area(self, check_map=False, check_pos=False):
         if self.verbose: print(self.ex)
         if self.real_map is None:
@@ -355,7 +412,7 @@ def merge_maps(maps, real_map=None, threshold=70):
         up      = bottom + get_size(map)[0]
         section = img[bottom:up,left:right]
         map_img = get_map_img(map)
-        if idx==len(maps)-1 and real_map:
+        if real_map and idx==len(maps)-1:
             img[bottom:up,left:right] = section + map_img
             section[section==-2] = -1
             section[section==99] = 100
