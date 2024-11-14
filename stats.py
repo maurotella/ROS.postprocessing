@@ -354,7 +354,11 @@ class TestSet:
         return res
     
     def get_perc_areas(self):
-        return {meth:{sr.ex:sr.get_perc_area() for sr in self.data[meth]} for meth in self.test_set}
+        return {meth:[sr.get_perc_area() for sr in self.data[meth]] for meth in self.test_set}
+
+    def get_perc_areas_stats(self, aggregate_func):
+        res = self.get_perc_areas()
+        return {method:aggregate_func(res[method]) for method in res}
 
     def __repr__(self):
         return f'{self.data}'
